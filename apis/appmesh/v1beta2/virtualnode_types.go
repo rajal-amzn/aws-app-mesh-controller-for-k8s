@@ -21,13 +21,65 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// VirtualNodeTLSValidationContextACMTrust refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_TlsValidationContextAcmTrust.html
+type VirtualNodeTLSValidationContextACMTrust struct {
+	// One or more ACM Amazon Resource Name (ARN)s.
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=3
+	CertificateAuthorityARNs []string `json:"certificateAuthorityARNs"`
+}
+
+// VirtualNodeTLSValidationContextFileTrust refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_TlsValidationContextFileTrust.html
+type VirtualNodeTLSValidationContextFileTrust struct {
+	// The certificate trust chain for a certificate stored on the file system of the virtual node that the proxy is running on.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=255
+	CertificateChain string `json:"certificateChain"`
+}
+
+// VirtualNodeTLSValidationContextTrust refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_TlsValidationContextTrust.html
+type VirtualNodeTLSValidationContextTrust struct {
+	// A reference to an object that represents a TLS validation context trust for an AWS Certicate Manager (ACM) certificate.
+	// +optional
+	ACM *VirtualNodeTLSValidationContextACMTrust `json:"acm,omitempty"`
+	// An object that represents a TLS validation context trust for a local file.
+	// +optional
+	File *VirtualNodeTLSValidationContextFileTrust `json:"file,omitempty"`
+}
+
+// VirtualNodeTLSValidationContext refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_TlsValidationContext.html
+type VirtualNodeTLSValidationContext struct {
+	// A reference to an object that represents a TLS validation context trust
+	Trust VirtualNodeTLSValidationContextTrust `json:"trust"`
+}
+
+// VirtualNodeClientPolicyTLS refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_ClientPolicyTls.html
+type VirtualNodeClientPolicyTLS struct {
+	// Whether the policy is enforced.
+	// If unspecified, default settings from AWS API will be applied. Refer to AWS Docs for default settings.
+	// +optional
+	Enforce *bool `json:"enforce,omitempty"`
+	// The range of ports that the policy is enforced for.
+	// +optional
+	Ports []PortNumber `json:"ports,omitempty"`
+	// A reference to an object that represents a TLS validation context.
+	Validation VirtualNodeTLSValidationContext `json:"validation"`
+}
+
+// VirtualNodeClientPolicy refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_ClientPolicy.html
+type VirtualNodeClientPolicy struct {
+	// A reference to an object that represents a Transport Layer Security (TLS) client policy.
+	// +optional
+	TLS *VirtualNodeClientPolicyTLS `json:"tls,omitempty"`
+}
+
 // VirtualServiceBackend refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_VirtualServiceBackend.html
 type VirtualServiceBackend struct {
 	// The VirtualService that is acting as a virtual node backend.
 	VirtualServiceRef VirtualServiceReference `json:"virtualServiceRef"`
 	// A reference to an object that represents the client policy for a backend.
 	// +optional
-	ClientPolicy *ClientPolicy `json:"clientPolicy,omitempty"`
+	ClientPolicy *VirtualNodeClientPolicy `json:"clientPolicy,omitempty"`
 }
 
 // Backend refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_Backend.html
@@ -36,11 +88,108 @@ type Backend struct {
 	VirtualService VirtualServiceBackend `json:"virtualService"`
 }
 
-// BackendDefaults refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_BackendDefaults.html
-type BackendDefaults struct {
+// VirtualNodeBackendDefaults refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_BackendDefaults.html
+type VirtualNodeBackendDefaults struct {
 	// A reference to an object that represents a client policy.
 	// +optional
-	ClientPolicy *ClientPolicy `json:"clientPolicy,omitempty"`
+	ClientPolicy *VirtualNodeClientPolicy `json:"clientPolicy,omitempty"`
+}
+
+// VirtualNodeHealthCheckPolicy refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_HealthCheckPolicy.html
+type VirtualNodeHealthCheckPolicy struct {
+	// The number of consecutive successful health checks that must occur before declaring listener healthy.
+	// If unspecified, defaults to be 10
+	// +kubebuilder:validation:Minimum=2
+	// +kubebuilder:validation:Maximum=10
+	// +optional
+	HealthyThreshold *int64 `json:"healthyThreshold,omitempty"`
+	// The time period in milliseconds between each health check execution.
+	// If unspecified, defaults to be 30000
+	// +kubebuilder:validation:Minimum=5000
+	// +kubebuilder:validation:Maximum=300000
+	// +optional
+	IntervalMillis *int64 `json:"intervalMillis,omitempty"`
+	// The destination path for the health check request.
+	// This value is only used if the specified protocol is http or http2. For any other protocol, this value is ignored.
+	// +optional
+	Path *string `json:"path,omitempty"`
+	// The destination port for the health check request.
+	// If unspecified, defaults to be same as port defined in the PortMapping for the listener.
+	// +optional
+	Port *PortNumber `json:"port,omitempty"`
+	// The protocol for the health check request
+	// If unspecified, defaults to be same as protocol defined in the PortMapping for the listener.
+	// +optional
+	Protocol *PortProtocol `json:"protocol,omitempty"`
+	// The amount of time to wait when receiving a response from the health check, in milliseconds.
+	// If unspecified, defaults to be 5000
+	// +kubebuilder:validation:Minimum=2000
+	// +kubebuilder:validation:Maximum=60000
+	// +optional
+	TimeoutMillis *int64 `json:"timeoutMillis,omitempty"`
+	// The number of consecutive failed health checks that must occur before declaring a virtual node unhealthy.
+	// If unspecified, defaults to be 2
+	// +kubebuilder:validation:Minimum=2
+	// +kubebuilder:validation:Maximum=10
+	// +optional
+	UnhealthyThreshold *int64 `json:"unhealthyThreshold,omitempty"`
+}
+
+// VirtualNodeListenerTLSACMCertificate refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_ListenerTlsAcmCertificate.html
+type VirtualNodeListenerTLSACMCertificate struct {
+	// The Amazon Resource Name (ARN) for the certificate.
+	CertificateARN string `json:"certificateARN"`
+}
+
+// VirtualNodeListenerTLSFileCertificate refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_ListenerTlsFileCertificate.html
+type VirtualNodeListenerTLSFileCertificate struct {
+	// The certificate chain for the certificate.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=255
+	CertificateChain string `json:"certificateChain"`
+	// The private key for a certificate stored on the file system of the virtual node that the proxy is running on.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=255
+	PrivateKey string `json:"privateKey"`
+}
+
+// VirtualNodeListenerTLSCertificate refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_ListenerTlsCertificate.html
+type VirtualNodeListenerTLSCertificate struct {
+	// A reference to an object that represents an AWS Certificate Manager (ACM) certificate.
+	// +optional
+	ACM *VirtualNodeListenerTLSACMCertificate `json:"acm,omitempty"`
+	// A reference to an object that represents a local file certificate.
+	// +optional
+	File *VirtualNodeListenerTLSFileCertificate `json:"file,omitempty"`
+}
+
+const (
+	VirtualNodeListenerTLSModeDisabled   VirtualNodeListenerTLSMode = "DISABLED"
+	VirtualNodeListenerTLSModePermissive VirtualNodeListenerTLSMode = "PERMISSIVE"
+	VirtualNodeListenerTLSModeStrict     VirtualNodeListenerTLSMode = "STRICT"
+)
+
+// +kubebuilder:validation:Enum=DISABLED;PERMISSIVE;STRICT
+type VirtualNodeListenerTLSMode string
+
+// VirtualNodeListenerTLS refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_ListenerTls.html
+type VirtualNodeListenerTLS struct {
+	// A reference to an object that represents a listener's TLS certificate.
+	Certificate VirtualNodeListenerTLSCertificate `json:"certificate"`
+	// ListenerTLS mode
+	Mode VirtualNodeListenerTLSMode `json:"mode"`
+}
+
+// VirtualNodeListener refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_Listener.html
+type VirtualNodeListener struct {
+	// The port mapping information for the listener.
+	PortMapping PortMapping `json:"portMapping"`
+	// The health check information for the listener.
+	// +optional
+	HealthCheck *VirtualNodeHealthCheckPolicy `json:"healthCheck,omitempty"`
+	// A reference to an object that represents the Transport Layer Security (TLS) properties for a listener.
+	// +optional
+	TLS *VirtualNodeListenerTLS `json:"tls,omitempty"`
 }
 
 // AWSCloudMapInstanceAttribute refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_AwsCloudMapInstanceAttribute.html
@@ -86,26 +235,26 @@ type ServiceDiscovery struct {
 	DNS *DNSServiceDiscovery `json:"dns,omitempty"`
 }
 
-// FileAccessLog refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_FileAccessLog.html
-type FileAccessLog struct {
+// VirtualNodeFileAccessLog refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_FileAccessLog.html
+type VirtualNodeFileAccessLog struct {
 	// The file path to write access logs to.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=255
 	Path string `json:"path"`
 }
 
-// AccessLog refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_AccessLog.html
-type AccessLog struct {
+// VirtualNodeAccessLog refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_AccessLog.html
+type VirtualNodeAccessLog struct {
 	// The file object to send virtual node access logs to.
 	// +optional
-	File *FileAccessLog `json:"file,omitempty"`
+	File *VirtualNodeFileAccessLog `json:"file,omitempty"`
 }
 
-// Logging refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_Logging.html
-type Logging struct {
+// VirtualNodeLogging refers to https://docs.aws.amazon.com/app-mesh/latest/APIReference/API_Logging.html
+type VirtualNodeLogging struct {
 	// The access log configuration for a virtual node.
 	// +optional
-	AccessLog *AccessLog `json:"accessLog,omitempty"`
+	AccessLog *VirtualNodeAccessLog `json:"accessLog,omitempty"`
 }
 
 type VirtualNodeConditionType string
@@ -156,7 +305,7 @@ type VirtualNodeSpec struct {
 	// +kubebuilder:validation:MinItems=0
 	// +kubebuilder:validation:MaxItems=1
 	// +optional
-	Listeners []Listener `json:"listeners,omitempty"`
+	Listeners []VirtualNodeListener `json:"listeners,omitempty"`
 	// The service discovery information for the virtual node.
 	// +optional
 	ServiceDiscovery *ServiceDiscovery `json:"serviceDiscovery,omitempty"`
@@ -165,10 +314,10 @@ type VirtualNodeSpec struct {
 	Backends []Backend `json:"backends,omitempty"`
 	// A reference to an object that represents the defaults for backends.
 	// +optional
-	BackendDefaults *BackendDefaults `json:"backendDefaults,omitempty"`
+	BackendDefaults *VirtualNodeBackendDefaults `json:"backendDefaults,omitempty"`
 	// The inbound and outbound access logging information for the virtual node.
 	// +optional
-	Logging *Logging `json:"logging,omitempty"`
+	Logging *VirtualNodeLogging `json:"logging,omitempty"`
 
 	// A reference to k8s Mesh CR that this VirtualNode belongs to.
 	// The admission controller populates it using Meshes's selector, and prevents users from setting this field.
